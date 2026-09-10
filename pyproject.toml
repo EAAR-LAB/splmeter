@@ -1,28 +1,51 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "splmeter"
-version = "0.0.6"
-authors = [
-  { name="Sumeet", email="s.saini@ufl.edu" },
-]
-description = "SPLMeter"
+version = "0.1.0"
+description = "Sound level meter calculation engine implementing IEC 61672-1"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "EAAR Lab, University of Florida" }]
+keywords = ["acoustics", "sound level meter", "IEC 61672", "environmental noise"]
 classifiers = [
+    # Was "MIT" while the LICENSE file said Apache-2.0 -- the two now agree.
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Intended Audience :: Science/Research",
 ]
-dependencies = [
-  'numpy',
-  'plotly',
-  'schemdraw',
-  'scipy'
-]
+dependencies = ["numpy>=1.22", "scipy>=1.8"]
+
+[project.optional-dependencies]
+# Plotting is not needed to compute a level; it was a hard dependency before.
+plot = ["matplotlib>=3.5"]
+io = ["soundfile>=0.12"]
+# MOSQITO (Apache-2.0) provides ISO 532-1 loudness, DIN 45692 sharpness,
+# ECMA-74 tonality and Daniel & Weber roughness. It requires matplotlib even for
+# headless use, so it is kept out of the core dependencies.
+soundquality = ["mosqito>=1.2,<2", "matplotlib>=3.5"]
+dev = ["pytest>=7", "soundfile>=0.12", "mosqito>=1.2,<2", "matplotlib>=3.5"]
 
 [project.urls]
-"Homepage" = "https://github.com/Sumeet2807/splmeter"
-"Bug Tracker" = "https://github.com/Sumeet2807/splmeter/issues"
+Homepage = "https://github.com/EAAR-LAB/splmeter"
+Repository = "https://github.com/EAAR-LAB/splmeter"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # Fail on deprecations raised by our own code, so numpy/scipy API drift is caught
+    # here rather than in a bulk run.
+    "error::DeprecationWarning",
+    # ...but not on ones from dependencies, which are not ours to fix. matplotlib
+    # (pulled in transitively by MOSQITO) triggers pyparsing deprecations at import.
+    "default::DeprecationWarning:matplotlib",
+    "default::DeprecationWarning:pyparsing",
+    "default:.*(enablePackrat|oneOf|parseString|resetCache).*:",
+]
