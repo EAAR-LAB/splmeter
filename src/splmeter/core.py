@@ -72,9 +72,24 @@ class Calibration:
 
     @property
     def scale(self) -> float:
-        """Multiplier taking a normalised sample value to pascals."""
-        gain = 10 ** ((self.gain_db + self.offset_db) / 20)
-        return self.fullscale_volts / (self.mic_sensitivity_v_per_pa * gain)
+        """Multiplier taking a normalised sample value to pascals.
+
+        ``gain_db`` and ``offset_db`` have OPPOSITE signs, because they mean opposite
+        things:
+
+        * ``gain_db`` describes the signal chain -- positive gain means the recording is
+          larger than the microphone produced, so it is divided out to recover pressure.
+        * ``offset_db`` is a correction to the reported LEVEL -- ``+3.9 dB`` means this
+          device reads 3.9 dB too low, so the pressure is scaled up.
+
+        Combining them into one term (as an earlier version did) silently inverts the
+        calibration: a device needing +3.9 dB would be made 3.9 dB quieter instead.
+        """
+        chain_gain = 10 ** (self.gain_db / 20)
+        correction = 10 ** (self.offset_db / 20)
+        return (
+            self.fullscale_volts * correction / (self.mic_sensitivity_v_per_pa * chain_gain)
+        )
 
     def to_pascals(self, samples: np.ndarray) -> np.ndarray:
         """Convert normalised samples (or volts, with ``fullscale_volts=1``) to Pa."""

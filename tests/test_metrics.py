@@ -234,3 +234,51 @@ def test_rejects_unknown_time_weighting(bad):
 def test_all_iec_time_constants_present():
     assert TIME_CONSTANTS == {"F": 0.125, "S": 1.0, "I": 0.035}
     assert IMPULSE_DECAY_TAU == pytest.approx(1.4979, abs=1e-3)
+
+
+def test_calibration_offset_raises_the_reported_level():
+    """A POSITIVE offset_db must make levels HIGHER.
+
+    Regression: offset_db was originally summed with gain_db, which inverted it -- a
+    device needing +3.9 dB would have been made 3.9 dB quieter. Nothing caught it
+    because no test used a nonzero offset.
+    """
+    from splmeter.core import Calibration
+
+    pressure = sine(0.05, 1000.0, 2.0)
+    plain = Calibration(mic_sensitivity_v_per_pa=0.050)
+    lifted = Calibration(mic_sensitivity_v_per_pa=0.050, offset_db=6.0)
+    a = leq(plain.to_pascals(pressure), FS)[0]
+    b = leq(lifted.to_pascals(pressure), FS)[0]
+    assert b - a == pytest.approx(6.0, abs=1e-4)
+
+
+def test_offset_is_equivalent_to_changing_sensitivity():
+    """+3.86 dB at 50 mV/Pa must equal 32.06 mV/Pa used directly.
+
+    This equivalence is what lets the archive be recalibrated arithmetically.
+    """
+    from splmeter.core import Calibration
+
+    pressure = sine(0.05, 1000.0, 2.0)
+    via_offset = Calibration(mic_sensitivity_v_per_pa=0.050, offset_db=3.86)
+    via_sensitivity = Calibration(mic_sensitivity_v_per_pa=0.050 / 10 ** (3.86 / 20))
+    assert leq(via_offset.to_pascals(pressure), FS)[0] == pytest.approx(
+        leq(via_sensitivity.to_pascals(pressure), FS)[0], abs=1e-4
+    )
+
+
+def test_gain_db_lowers_the_level_while_offset_raises_it():
+    """The two terms are deliberately opposite in sign."""
+    from splmeter.core import Calibration
+
+    pressure = sine(0.05, 1000.0, 2.0)
+    base = leq(Calibration(mic_sensitivity_v_per_pa=0.050).to_pascals(pressure), FS)[0]
+    with_gain = leq(
+        Calibration(mic_sensitivity_v_per_pa=0.050, gain_db=6.0).to_pascals(pressure), FS
+    )[0]
+    with_offset = leq(
+        Calibration(mic_sensitivity_v_per_pa=0.050, offset_db=6.0).to_pascals(pressure), FS
+    )[0]
+    assert with_gain - base == pytest.approx(-6.0, abs=1e-4)
+    assert with_offset - base == pytest.approx(+6.0, abs=1e-4)
