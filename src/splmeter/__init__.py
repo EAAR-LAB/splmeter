@@ -36,7 +36,9 @@ from .exposure import cnel, ldn, lden, period_levels
 from .metrics import (
     energy_average,
     exceedance_levels,
+    impulsiveness,
     leq,
+    leq_time_weighted,
     lmax,
     lmin,
     lpeak,
@@ -58,6 +60,6 @@ __all__ = [
     "REFERENCE_CALIBRATION", "THIRD_OCTAVE", "TWELFTH_OCTAVE", "WeightingFilter",
     "analytic_weighting_db", "apply_weighting", "assess", "band_levels",
     "band_sum_level", "cnel", "energy_average", "exceedance_levels", "ldn", "lden",
-    "leq", "lmax", "lmin", "lpeak", "period_levels", "sel", "spectrogram",
+    "impulsiveness", "leq", "leq_time_weighted", "lmax", "lmin", "lpeak", "period_levels", "sel", "spectrogram",
     "soundquality", "time_weight", "to_db", "weighting_response_db", "__version__",
 ]
