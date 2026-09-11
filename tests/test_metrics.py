@@ -282,3 +282,44 @@ def test_gain_db_lowers_the_level_while_offset_raises_it():
     )[0]
     assert with_gain - base == pytest.approx(-6.0, abs=1e-4)
     assert with_offset - base == pytest.approx(+6.0, abs=1e-4)
+
+
+def test_laieq_exceeds_laeq_for_impulsive_content():
+    """Impulsiveness: LAIeq - LAeq rises with impulsive character (ISO 1996-2).
+
+    The 831 reports the same quantity as LwIeq - Lweq; on the May 2023 construction
+    recording that difference was 3.6 dB.
+    """
+    from splmeter.metrics import impulsiveness, leq_time_weighted
+
+    rng = np.random.default_rng(11)
+    steady = rng.standard_normal(int(FS * 6)) * 0.05
+    impulsive = steady.copy()
+    # Short, widely spaced bursts -- the shape the Impulse detector exists to catch.
+    for start in range(int(FS * 0.5), impulsive.size, int(FS * 1.5)):
+        impulsive[start : start + int(FS * 0.02)] += 1.0
+
+    steady_i = np.median(impulsiveness(steady, FS))
+    burst_i = np.median(impulsiveness(impulsive, FS))
+    assert burst_i > steady_i + 2.0
+    assert abs(steady_i) < 1.5   # steady noise is not impulsive
+    assert np.all(leq_time_weighted(impulsive, FS, "I") >= leq(impulsive, FS) - 1e-6)
+
+
+def test_leq_time_weighted_matches_leq_for_a_steady_tone():
+    """With a stationary signal, time weighting cannot change the energy average.
+
+    Compared only after the detector has settled. Slow has tau = 1 s, so it is still
+    0.14 dB low three seconds in and reaches 0.003 dB by seven -- the same warm-up
+    requirement that makes measure_packet() prepend and discard a lead-in.
+    """
+    from splmeter.metrics import leq_time_weighted
+
+    tone = sine(np.sqrt(2.0), 1000.0, 12.0)
+    settled = 5  # >= 5 tau for the Slow detector
+    plain = leq(tone, FS, 1.0)[settled:]
+    slow = leq_time_weighted(tone, FS, "S", 1.0)[settled:]
+    assert np.allclose(slow, plain, atol=0.02)
+    # Fast (tau = 0.125 s) is settled almost immediately.
+    fast = leq_time_weighted(tone, FS, "F", 1.0)[1:]
+    assert np.allclose(fast, leq(tone, FS, 1.0)[1:], atol=1e-3)

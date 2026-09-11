@@ -27,6 +27,7 @@ from .bands import (
     THIRD_OCTAVE,
     TWELFTH_OCTAVE,
     BandSet,
+    band_exceedance_levels,
     band_levels,
     band_sum_level,
     spectrogram,
@@ -36,7 +37,9 @@ from .exposure import cnel, ldn, lden, period_levels
 from .metrics import (
     energy_average,
     exceedance_levels,
+    impulsiveness,
     leq,
+    leq_time_weighted,
     lmax,
     lmin,
     lpeak,
@@ -56,8 +59,9 @@ __version__ = "0.1.0"
 __all__ = [
     "BandSet", "Calibration", "OCTAVE", "P_REF", "QualityFlags",
     "REFERENCE_CALIBRATION", "THIRD_OCTAVE", "TWELFTH_OCTAVE", "WeightingFilter",
-    "analytic_weighting_db", "apply_weighting", "assess", "band_levels",
+    "analytic_weighting_db", "apply_weighting", "assess", "band_exceedance_levels",
+    "band_levels",
     "band_sum_level", "cnel", "energy_average", "exceedance_levels", "ldn", "lden",
-    "leq", "lmax", "lmin", "lpeak", "period_levels", "sel", "spectrogram",
+    "impulsiveness", "leq", "leq_time_weighted", "lmax", "lmin", "lpeak", "period_levels", "sel", "spectrogram",
     "soundquality", "time_weight", "to_db", "weighting_response_db", "__version__",
 ]

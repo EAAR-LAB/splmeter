@@ -132,3 +132,63 @@ def test_spectrogram_shape_and_peak():
 def test_bandset_rejects_invalid_fraction():
     with pytest.raises(ValueError):
         BandSet(0)
+
+
+def test_band_exceedance_levels_shape_and_ordering():
+    """L90 (background) must sit below L10 (loud events) in every band."""
+    from splmeter.bands import band_exceedance_levels
+
+    rng = np.random.default_rng(21)
+    levels = rng.normal(55, 6, size=(600, len(THIRD_OCTAVE)))
+    result = band_exceedance_levels(levels, [10, 50, 90])
+    for n in (10, 50, 90):
+        assert result[n].shape == (len(THIRD_OCTAVE),)
+    assert np.all(result[90] < result[50])
+    assert np.all(result[50] < result[10])
+
+
+def test_l90_spectrum_is_the_background_not_the_events():
+    """A band with rare loud events must show them in L10 but not in L90.
+
+    This is the point of a spectral L90: it recovers the quiet floor's spectral shape
+    with transients removed, which a broadband L90 cannot.
+    """
+    from splmeter.bands import band_exceedance_levels
+
+    levels = np.full((1000, len(THIRD_OCTAVE)), 50.0)
+    levels[:20, 5] = 95.0          # loud but rare, in one band only
+    result = band_exceedance_levels(levels, [10, 90])
+    assert result[90][5] == pytest.approx(50.0, abs=0.5)   # background unaffected
+    assert result[10][5] == pytest.approx(50.0, abs=0.5)   # 2% of frames: below L10 too
+    result_l1 = band_exceedance_levels(levels, [1])
+    assert result_l1[1][5] > 90.0                          # but visible at L1
+
+
+def test_unresolvable_bands_stay_nan():
+    from splmeter.bands import band_exceedance_levels
+
+    levels = np.full((100, len(TWELFTH_OCTAVE)), 50.0)
+    levels[:, 0] = np.nan
+    result = band_exceedance_levels(levels, [50])
+    assert np.isnan(result[50][0])
+    assert np.isfinite(result[50][-1])
+
+
+def test_band_exceedance_rejects_one_dimensional_input():
+    from splmeter.bands import band_exceedance_levels
+
+    with pytest.raises(ValueError, match="n_frames, n_bands"):
+        band_exceedance_levels(np.zeros(50), [50])
+
+
+def test_spectral_and_broadband_exceedance_agree_on_a_single_band():
+    """With one band, spectral Ln must reduce to the broadband definition."""
+    from splmeter.bands import band_exceedance_levels
+    from splmeter.metrics import exceedance_levels
+
+    rng = np.random.default_rng(3)
+    series = rng.normal(60, 5, 500)
+    spectral = band_exceedance_levels(series.reshape(-1, 1), [10, 90])
+    broadband = exceedance_levels(series, [10, 90])
+    assert spectral[10][0] == pytest.approx(broadband[10], abs=1e-9)
+    assert spectral[90][0] == pytest.approx(broadband[90], abs=1e-9)

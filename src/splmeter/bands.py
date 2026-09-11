@@ -22,6 +22,8 @@ tautology.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from .core import P_REF, to_db
@@ -177,6 +179,36 @@ def band_sum_level(levels: np.ndarray) -> np.ndarray:
     with np.errstate(invalid="ignore"):
         power = np.where(np.isfinite(levels), 10.0 ** (levels / 10.0), 0.0)
     return 10.0 * np.log10(np.sum(power, axis=-1))
+
+
+def band_exceedance_levels(levels: np.ndarray, percentiles) -> dict[float, np.ndarray]:
+    """Statistical exceedance levels **per band** -- the 831 calls this spectral Ln.
+
+    Given per-frame band levels of shape ``(n_frames, n_bands)``, returns
+    ``{n: array of n_bands}`` where each entry is the level exceeded n% of the time in
+    that band.
+
+    The **L90 spectrum is the standard measure of background noise**: it shows the
+    spectral shape of the quiet floor with transient events removed, which a broadband
+    L90 cannot. L10 per band shows the opposite -- which frequencies the loud events
+    occupy. Comparing the two separates a steady tonal source from intermittent
+    broadband activity.
+
+    Bands masked as unresolvable (``nan``) stay ``nan`` rather than being dropped, so
+    the result stays aligned with the band set.
+    """
+    levels = np.asarray(levels, dtype=np.float64)
+    if levels.ndim != 2:
+        raise ValueError(f"expected (n_frames, n_bands), got shape {levels.shape}")
+
+    out: dict[float, np.ndarray] = {}
+    for n in percentiles:
+        # Ln is the level EXCEEDED n% of the time, so it is the (100-n)th percentile.
+        # L90 is the quiet background; a plain quantile(0.90) would give the opposite.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # all-nan bands
+            out[float(n)] = np.nanpercentile(levels, 100.0 - float(n), axis=0)
+    return out
 
 
 def spectrogram(

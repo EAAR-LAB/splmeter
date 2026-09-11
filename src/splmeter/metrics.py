@@ -97,6 +97,37 @@ def leq(
     return to_db(frame_mean_square(pressure, fs, window_s, hop_s))
 
 
+def leq_time_weighted(
+    pressure: np.ndarray,
+    fs: float,
+    weighting: str = "I",
+    window_s: float = 1.0,
+) -> np.ndarray:
+    """Equivalent level of a TIME-WEIGHTED signal, per frame.
+
+    With ``weighting="I"`` on an A-weighted input this is **LAIeq**, which exists to be
+    compared against plain LAeq: the difference ``LAIeq - LAeq`` is the standard
+    **impulsiveness** indicator (ISO 1996-2), used to decide whether a source's
+    impulsive character warrants a penalty. Hammering, pile driving and reversing alarms
+    push it up; steady traffic leaves it near zero.
+
+    Distinct from :func:`lmax` with Impulse weighting, which reports the loudest moment
+    rather than the energy of the impulse-weighted signal.
+    """
+    weighted = time_weight(pressure, fs, weighting)
+    return to_db(_frame_reduce(weighted, fs, window_s, np.mean))
+
+
+def impulsiveness(pressure: np.ndarray, fs: float, window_s: float = 1.0) -> np.ndarray:
+    """``LAIeq - LAeq`` per frame, in dB -- how impulsive the signal is.
+
+    Pass an A-weighted signal. Values near zero indicate steady noise; a few dB or more
+    indicates impulsive content. The 831 reports the same quantity as the difference
+    between its ``LwIeq`` and ``Lweq`` fields.
+    """
+    return leq_time_weighted(pressure, fs, "I", window_s) - leq(pressure, fs, window_s)
+
+
 def time_weight(pressure: np.ndarray, fs: float, weighting: str = "F") -> np.ndarray:
     """Exponentially time-weighted mean-square pressure (not yet in dB).
 
