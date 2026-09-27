@@ -8,6 +8,7 @@ import pytest
 from splmeter.exposure import (
     CNEL_PERIODS,
     LDEN_PERIODS,
+    CNEL_EVENING_PENALTY_DB,
     LDN_PERIODS,
     Period,
     cnel,
@@ -80,6 +81,14 @@ def test_lden_and_cnel_differ_on_the_same_data():
     levels, hours = hourly_series(lambda h: 85.0 if h == 22 else 50.0)
     difference = cnel(levels, hours) - lden(levels, hours)
     assert difference > 1.0, f"Lden and CNEL differ by only {difference:.3f} dB"
+
+
+def test_cnel_weights_the_evening_by_a_factor_of_three():
+    """CCR Title 21 s.5001(f): evening energy x3, i.e. 4.77 dB -- not Lden's 5 dB."""
+    assert CNEL_EVENING_PENALTY_DB == pytest.approx(4.7712, abs=1e-4)
+    levels, hours = hourly_series(lambda h: 60.0)
+    expected = 10 * np.log10((12 * 10**6.0 + 3 * 3 * 10**6.0 + 9 * 10 * 10**6.0) / 24)
+    assert cnel(levels, hours) == pytest.approx(expected, abs=1e-9)
 
 
 def test_ldn_has_no_evening_period():

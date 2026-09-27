@@ -11,12 +11,17 @@ document specifies:
 Index   Day                    Evening                     Night
 ======  =====================  ==========================  =========================
 Lden    07:00-19:00 (12 h)     19:00-23:00 (4 h), +5 dB    23:00-07:00 (8 h), +10 dB
-CNEL    07:00-19:00 (12 h)     19:00-22:00 (3 h), +5 dB    22:00-07:00 (9 h), +10 dB
+CNEL    07:00-19:00 (12 h)     19:00-22:00 (3 h), x3       22:00-07:00 (9 h), +10 dB
 Ldn     07:00-22:00 (15 h)     --                          22:00-07:00 (9 h), +10 dB
 ======  =====================  ==========================  =========================
 
 Lden follows Directive 2002/49/EC Annex I; CNEL follows the California airport noise
 regulations (CCR Title 21 s.5001); Ldn follows the US EPA / FAA day-night level.
+
+CNEL's evening weight is a **factor of 3** on energy -- 10*log10(3) = 4.77 dB -- as
+s.5001(f) writes it: ``10 log (1/24)[SUM antilog(HNLD/10) + 3 SUM antilog(HNLE/10) +
+10 SUM antilog(HNLN/10)]``. It is often quoted as "+5 dB", which is Lden's evening
+penalty, not CNEL's; the two differ by 0.23 dB on the evening component.
 
 Every combination is energetic -- ``10*log10(mean(10^(L/10)))`` -- never an arithmetic
 mean of decibels.
@@ -62,11 +67,15 @@ LDEN_PERIODS = (
     Period("night", 23, 7, 10.0),
 )
 
+#: CNEL's evening weight: s.5001(f) multiplies evening energy by 3.
+CNEL_EVENING_PENALTY_DB = 10.0 * float(np.log10(3.0))
+
 #: CNEL, California Code of Regulations Title 21 s.5001.  Note the evening is three
-#: hours here, not four, and the night starts an hour earlier than for Lden.
+#: hours here, not four, the night starts an hour earlier than for Lden, and the
+#: evening weight is a factor of 3 (4.77 dB), not Lden's 5 dB.
 CNEL_PERIODS = (
     Period("day", 7, 19, 0.0),
-    Period("evening", 19, 22, 5.0),
+    Period("evening", 19, 22, CNEL_EVENING_PENALTY_DB),
     Period("night", 22, 7, 10.0),
 )
 
